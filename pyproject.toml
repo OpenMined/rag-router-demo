@@ -17,7 +17,7 @@ dependencies = [
 
 [tool.uv.sources]
 syft-event = { git = "https://github.com/OpenMined/syft-extras.git", subdirectory = "packages/syft-event", rev = "main" }
-syft-llm-router = { path = "../../", editable = true }
+syft-llm-router = { path = "https://github.com/OpenMined/syft-llm-router.git", rev = "main" }
 
 
 # Application configuration

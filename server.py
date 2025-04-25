@@ -67,7 +67,7 @@ def load_router() -> BaseLLMRouter:
 
 def get_embedder_endpoint() -> str:
     """Get the embedder endpoint."""
-    return "http://localhost:8000/embed"
+    return "http://localhost:8002/embed"
 
 
 def get_indexer_endpoint() -> str:

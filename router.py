@@ -50,13 +50,13 @@ class SyftRAGRouter(BaseLLMRouter):
         messages: list[Message],
         options: GenerationOptions | None = None,
     ) -> ChatResponse:
-        raise EndpointNotImplementedError("Generate chat method not implemented")
+        return EndpointNotImplementedError("Generate chat method not implemented")
 
     def generate_completion(
         self, model: str, prompt: str, options: GenerationOptions | None = None
     ) -> CompletionResponse:
-        raise EndpointNotImplementedError("Generate completion method not implemented")
-
+        return EndpointNotImplementedError("Generate completion method not implemented")
+    
     def read_json(self, file_path: Path) -> dict:
         """Read a JSON file and return the contents.
 
@@ -124,6 +124,10 @@ class SyftRAGRouter(BaseLLMRouter):
 
         logger.info(f"Total documents processed: {total_documents}")
         logger.info(f"Failed documents: {failed_documents}")
+
+        # Unlink the file
+        # TODO: Move to archive directory
+        file_path.unlink()
 
         return EmbeddingResponse(
             id=uuid.uuid4(),

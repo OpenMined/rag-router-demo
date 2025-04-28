@@ -106,6 +106,14 @@ class SyftRAGRouter(BaseLLMRouter):
 
         logger.info(f"Embedding {total_documents} documents")
         for document in tqdm(formatted_documents):
+            if document.metadata.get("doc_id"):
+                if self.check_if_document_exists(
+                    indexer_endpoint, 
+                    {"doc_id": document.metadata.get("doc_id")},
+                ):
+                    logger.info(f"Document {document.id} already exists in the index")
+                    continue
+
             response = self._embed_document(embedder_endpoint, document)
             if "embeddings" not in response or not response["embeddings"]:
                 failed_documents += 1
@@ -135,6 +143,20 @@ class SyftRAGRouter(BaseLLMRouter):
             processed_count=total_documents,
             failed_count=failed_documents,
         )
+    
+    def check_if_document_exists(self, indexer_endpoint: str, filter: dict) -> bool:
+        """Check if a document exists in the index.
+
+        Args:
+            indexer_endpoint: HTTP endpoint of the indexing service
+            filter: Filter to check if a document exists
+        """
+        response = requests.get(f"{indexer_endpoint}/count", json=filter)
+        response.raise_for_status()
+
+        if response.json()["count"] > 0:
+            return True
+        return False
 
     def _index_document(self, indexer_endpoint: str, embeddings: list[dict]) -> dict:
         """Index a document using the indexing service.
@@ -142,7 +164,7 @@ class SyftRAGRouter(BaseLLMRouter):
         Args:
             indexer_endpoint: HTTP endpoint of the indexing service
         """
-        response = requests.post(indexer_endpoint, json={"embeddings": embeddings})
+        response = requests.post(f"{indexer_endpoint}/index", json={"embeddings": embeddings})
         response.raise_for_status()
         return response.json()
 
@@ -180,7 +202,7 @@ class SyftRAGRouter(BaseLLMRouter):
             **optional_kwargs,
         }
 
-        response = requests.post(embedder_endpoint, json=request_body)
+        response = requests.post(f"{embedder_endpoint}/embed", json=request_body)
         response.raise_for_status()
         response_json = response.json()
         return response_json

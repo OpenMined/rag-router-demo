@@ -56,7 +56,7 @@ class SyftRAGRouter(BaseLLMRouter):
         self, model: str, prompt: str, options: GenerationOptions | None = None
     ) -> CompletionResponse:
         return EndpointNotImplementedError("Generate completion method not implemented")
-    
+
     def read_json(self, file_path: Path) -> dict:
         """Read a JSON file and return the contents.
 
@@ -107,8 +107,8 @@ class SyftRAGRouter(BaseLLMRouter):
         logger.info(f"Embedding {total_documents} documents")
         for document in tqdm(formatted_documents):
             if document.metadata.get("doc_id"):
-                if self.check_if_document_exists(
-                    indexer_endpoint, 
+                if self._is_document_present(
+                    indexer_endpoint,
                     {"doc_id": document.metadata.get("doc_id")},
                 ):
                     logger.info(f"Document {document.id} already exists in the index")
@@ -143,15 +143,21 @@ class SyftRAGRouter(BaseLLMRouter):
             processed_count=total_documents,
             failed_count=failed_documents,
         )
-    
-    def check_if_document_exists(self, indexer_endpoint: str, filter: dict) -> bool:
+
+    def _is_document_present(self, indexer_endpoint: str, filter: dict) -> bool:
         """Check if a document exists in the index.
 
         Args:
             indexer_endpoint: HTTP endpoint of the indexing service
             filter: Filter to check if a document exists
         """
-        response = requests.get(f"{indexer_endpoint}/count", json=filter)
+        # Remove trailing slash if present
+        indexer_endpoint = indexer_endpoint.rstrip("/")
+
+        logger.info(f"Checking if document exists in the index with filter: {filter}")
+        logger.info(f"Indexer endpoint: {indexer_endpoint}")
+
+        response = requests.post(f"{indexer_endpoint}/count", json={"filter": filter})
         response.raise_for_status()
 
         if response.json()["count"] > 0:
@@ -164,7 +170,9 @@ class SyftRAGRouter(BaseLLMRouter):
         Args:
             indexer_endpoint: HTTP endpoint of the indexing service
         """
-        response = requests.post(f"{indexer_endpoint}/index", json={"embeddings": embeddings})
+        response = requests.post(
+            f"{indexer_endpoint}/index", json={"embeddings": embeddings}
+        )
         response.raise_for_status()
         return response.json()
 
@@ -268,7 +276,11 @@ class SyftRAGRouter(BaseLLMRouter):
             "top_k": options.limit if options else 3,
         }
 
-        response = requests.post(retriever_endpoint, json=retriever_request)
+        logger.info(f"Retriever request: {retriever_request}")
+        endpoint = retriever_endpoint.rstrip("/")
+        retriever_route = endpoint + "/search"
+
+        response = requests.post(retriever_route, json=retriever_request)
         response.raise_for_status()
         response_json = response.json()
 
@@ -293,16 +305,16 @@ class SyftRAGRouter(BaseLLMRouter):
 
 if __name__ == "__main__":
     router = SyftRAGRouter()
-    # response = router.embed_documents(
-    #     "/home/shubham/repos/OpenMined/syft-rag/data",
-    #     "http://localhost:8000/embed",
-    #     "http://localhost:8001/index",
-    # )
-    # print(response)
+    # # response = router.embed_documents(
+    # #     "/home/shubham/repos/OpenMined/syft-rag/data/data.json",
+    # #     "http://localhost:8002",
+    # #     "http://localhost:8001",
+    # # )
+    # # print(response)
 
     # response = router.retrieve_documents(
     #     "What is the use of AI?",
-    #     "http://localhost:8000/embed",
-    #     "http://localhost:8001/search",
+    #     "http://localhost:8002",
+    #     "http://localhost:8001",
     # )
     # print(response)

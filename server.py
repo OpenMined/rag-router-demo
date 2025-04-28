@@ -67,17 +67,17 @@ def load_router() -> BaseLLMRouter:
 
 def get_embedder_endpoint() -> str:
     """Get the embedder endpoint."""
-    return "http://localhost:8002/"
+    return "http://localhost:8002"
 
 
 def get_indexer_endpoint() -> str:
     """Get the indexer endpoint."""
-    return "http://localhost:8001/"
+    return "http://localhost:8001"
 
 
 def get_retriever_endpoint() -> str:
     """Get the retriever endpoint."""
-    return "http://localhost:8001/search"
+    return "http://localhost:8001"
 
 
 def create_server(project_name: str, config_path: Optional[Path] = None):

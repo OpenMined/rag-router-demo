@@ -51,18 +51,23 @@ def test_retrieval(client: Client, datasite: str, query: str):
 # Example usage
 if __name__ == "__main__":
     import time
+    import sys
+
+    if len(sys.argv) == 2:
+        query = sys.argv[1]
+    else:
+        print(f"No query provided. Using default query.")
+        query = "Provide me documents on the topic of AI?"
 
     client = Client.load()
-
     # This is the datasite where the LLM Routing service is running
     datasite = client.email
-
     start = time.time()
     print("Test retrieval....")
     response = test_retrieval(
         client=client,
         datasite=datasite,
-        query="Provide me documents on the topic of AI?",
+        query=query,
     )
     print(response)
     end = time.time()

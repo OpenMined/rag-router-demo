@@ -20,6 +20,10 @@ from syft_llm_router.schema import (
     RetrievalResponse,
 )
 from tqdm import tqdm
+from PyPDF2 import PdfReader
+import ebooklib
+from ebooklib import epub
+from bs4 import BeautifulSoup
 
 
 class Document(BaseModel):
@@ -57,13 +61,57 @@ class SyftRAGRouter(BaseLLMRouter):
     ) -> CompletionResponse:
         return EndpointNotImplementedError("Generate completion method not implemented")
 
-    def read_json(self, file_path: Path) -> dict:
-        """Read a JSON file and return the contents.
+    def read_document(self, file_path: Path) -> list[dict] | None:
+        """Read a document file (JSON, PDF, EPUB) and return the contents as a list of dicts.
 
         Args:
-            file_path: Path to the JSON file
+            file_path: Path to the document file
+        Returns:
+            list[dict] | None: List of document dicts, or None if unsupported
         """
-        return json.load(file_path.open("r"))
+        ext = file_path.suffix.lower()
+        if ext == ".json":
+            return json.load(file_path.open("r"))
+        elif ext == ".pdf":
+            try:
+                reader = PdfReader(str(file_path))
+                text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                return [{"content": text, "doc_id": str(uuid.uuid4())}]
+            except Exception as e:
+                logger.error(f"Error reading PDF file {file_path}: {e}")
+                return None
+        elif ext == ".epub":
+            try:
+                book = epub.read_epub(str(file_path))
+                combined_text = ""
+                
+                # Function to extract text from HTML content
+                def chapter_to_text(chapter_content):
+                    soup = BeautifulSoup(chapter_content, 'html.parser')
+                    text = soup.get_text()
+                    # Clean up whitespace
+                    return ' '.join(text.split())
+                
+                # Iterate through all items in the book
+                for item in book.get_items():
+                    # Check if the item is a document (HTML content)
+                    if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                        # Get the content as bytes and decode to string
+                        content = item.get_content().decode('utf-8')
+                        # Extract text from the content
+                        chapter_text = chapter_to_text(content)
+                        # Add the chapter text to our combined text
+                        combined_text += chapter_text + "\n\n"
+                
+                return [{"content": combined_text, "doc_id": str(uuid.uuid4())}]
+            except Exception as e:
+                logger.error(f"Error reading EPUB file {file_path}: {e}")
+                return None
+        else:
+            logger.warning(f"Unsupported file type: {ext}")
+            return None
+
+
 
     def embed_documents(
         self,
@@ -91,7 +139,7 @@ class SyftRAGRouter(BaseLLMRouter):
         total_documents = 0
         failed_documents = 0
 
-        documents = self.read_json(file_path)
+        documents = self.read_document(file_path)
 
         if not documents:
             return EmbeddingResponse(

@@ -202,7 +202,10 @@ def register_routes(server):
     server.on_request("/completions")(handle_completion_request)
     server.on_request("/chat")(handle_chat_completion_request)
     server.on_request("/retrieve")(handle_document_retrieval_request)
+    # Watch for each file type separately
     server.watch("{datasite}/embeddings/**/*.json")(handle_document_embeddings)
+    server.watch("{datasite}/embeddings/**/*.pdf")(handle_document_embeddings)
+    server.watch("{datasite}/embeddings/**/*.epub")(handle_document_embeddings)
     server.on_request("/ping")(ping)
 
     return server

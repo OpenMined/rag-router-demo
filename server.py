@@ -23,6 +23,7 @@ from syft_llm_router.schema import (
     RetrievalResponse,
 )
 from watchdog.events import FileSystemEvent
+from accountingSDK import UserClient as AccountingClient
 
 
 class ChatRequest(BaseModel):
@@ -65,6 +66,18 @@ def load_router() -> BaseLLMRouter:
     return SyftRAGRouter()
 
 
+ACCOUNTING_EMAIL = ""
+ACCOUNTING_PASSWORD = ""
+
+
+def get_accounting_client() -> AccountingClient:
+    return AccountingClient(
+        url="http://localhost:3000",
+        email=ACCOUNTING_EMAIL,
+        password=ACCOUNTING_PASSWORD,
+    )
+
+
 def get_embedder_endpoint() -> str:
     """Get the embedder endpoint."""
     return "http://localhost:8002"
@@ -83,7 +96,8 @@ def get_retriever_endpoint() -> str:
 def create_server(project_name: str, config_path: Optional[Path] = None):
     """Create and return the SyftEvents server with the given config path."""
     if config_path:
-        client = Client.load(path=config_path)
+        logger.info(f"Loading client from config path: {config_path}")
+        client = Client.load(filepath=config_path)
     else:
         client = Client.load()
 
@@ -138,20 +152,51 @@ def handle_document_retrieval_request(
     ctx: Request,
 ) -> Union[RetrievalResponse, Error]:
     """Handle a document retrieval request."""
+
+    transaction_token = ctx.headers.get("X-Transaction-Token")
+
+    logger.info(f"Transaction token for User: {ctx.sender}: {transaction_token}")
     logger.info(f"Processing document retrieval request: <{ctx.id}>from <{ctx.sender}>")
+
+    transaction_obj = None
+
     provider = load_router()
+    acc_client = get_accounting_client()
     embedder_endpoint = get_embedder_endpoint()
     retriever_endpoint = get_retriever_endpoint()
     try:
-        response = provider.retrieve_documents(
-            query=request.query,
-            options=request.options,
-            embedder_endpoint=embedder_endpoint,
-            retriever_endpoint=retriever_endpoint,
+        transaction_obj = acc_client.create_delegated_transaction(
+            senderEmail=ctx.sender,
+            amount=1.0,
+            token=transaction_token,
         )
+        # response = provider.retrieve_documents(
+        #     query=request.query,
+        #     options=request.options,
+        #     embedder_endpoint=embedder_endpoint,
+        #     retriever_endpoint=retriever_endpoint,
+        # )
+        response = RetrievalResponse(
+            id=ctx.id,
+            results=[],
+            query=request.query,
+        )
+        transaction_obj = acc_client.confirm_transaction(id=transaction_obj.id)
+
+        response.provider_info = {
+            "usage": {
+                "transaction_id": transaction_obj.id,
+                "amount": transaction_obj.amount,
+            }
+        }
     except Exception as e:
         logger.error(f"Error processing request: {e}")
         response = InvalidRequestError(message=str(e))
+    finally:
+        if transaction_obj is not None and transaction_obj.status == "PENDING":
+            acc_client.cancel_transaction(
+                id=transaction_obj.id,
+            )
     return response
 
 
@@ -229,6 +274,10 @@ if __name__ == "__main__":
 
     # Create server with config path
     box = create_server(project_name=args.project_name, config_path=args.config)
+
+    # Set the accounting credentials
+    ACCOUNTING_EMAIL = box.client.email
+    ACCOUNTING_PASSWORD = "password"
 
     # Register routes
     register_routes(box)

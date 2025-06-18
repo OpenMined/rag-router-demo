@@ -55,13 +55,20 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 2:
         query = sys.argv[1]
+        datasite = None  # Will use client.email
+    elif len(sys.argv) == 3:
+        query = sys.argv[1]
+        datasite = sys.argv[2]
     else:
-        print(f"No query provided. Using default query.")
-        query = "Provide me documents on the topic of AI?"
+        print("Usage: python chat_test.py \"query\" [email]")
+        print("  - query: The query to send to the model (required)")
+        print("  - email: The datasite email (optional, defaults to your own datasite)")
+        sys.exit(1)
 
     client = Client.load()
-    # This is the datasite where the LLM Routing service is running
-    datasite = client.email
+    # Use provided email as datasite, otherwise use client.email
+    if datasite is None:
+        datasite = client.email
     start = time.time()
     print("Test retrieval....")
     response = test_retrieval(

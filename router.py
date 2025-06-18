@@ -24,6 +24,7 @@ from PyPDF2 import PdfReader
 import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
+import yaml
 
 
 class Document(BaseModel):
@@ -62,7 +63,7 @@ class SyftRAGRouter(BaseLLMRouter):
         return EndpointNotImplementedError("Generate completion method not implemented")
 
     def read_document(self, file_path: Path) -> list[dict] | None:
-        """Read a document file (JSON, PDF, EPUB) and return the contents as a list of dicts.
+        """Read a document file (JSON, PDF, EPUB, Markdown, YAML) and return the contents as a list of dicts.
 
         Args:
             file_path: Path to the document file
@@ -106,6 +107,22 @@ class SyftRAGRouter(BaseLLMRouter):
                 return [{"content": combined_text, "doc_id": str(uuid.uuid4())}]
             except Exception as e:
                 logger.error(f"Error reading EPUB file {file_path}: {e}")
+                return None
+        elif ext == ".md":
+            try:
+                with open(file_path, 'r') as file:
+                    text = file.read()
+                return [{"content": text, "doc_id": str(uuid.uuid4())}]
+            except Exception as e:
+                logger.error(f"Error reading markdown file {file_path}: {e}")
+                return None
+        elif ext == ".yaml" or ext == ".yml":
+            try:
+                with open(file_path, 'r') as file:
+                    text = file.read()
+                return [{"content": text, "doc_id": str(uuid.uuid4())}]
+            except Exception as e:
+                logger.error(f"Error reading YAML file {file_path}: {e}")
                 return None
         else:
             logger.warning(f"Unsupported file type: {ext}")

@@ -206,6 +206,9 @@ def register_routes(server):
     server.watch("{datasite}/embeddings/**/*.json")(handle_document_embeddings)
     server.watch("{datasite}/embeddings/**/*.pdf")(handle_document_embeddings)
     server.watch("{datasite}/embeddings/**/*.epub")(handle_document_embeddings)
+    server.watch("{datasite}/embeddings/**/*.md")(handle_document_embeddings)
+    server.watch("{datasite}/embeddings/**/*.yaml")(handle_document_embeddings)
+    server.watch("{datasite}/embeddings/**/*.yml")(handle_document_embeddings)
     server.on_request("/ping")(ping)
 
     return server

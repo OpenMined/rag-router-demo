@@ -7,7 +7,7 @@ uv pip install .
 
 while true; do
     echo "Running 'inbox' with $(python3 --version) at '$(which python3)'"
-    python3 server.py --project-name rag-app
+    python3 server.py --project-name rag-router-demo
 
     echo "Sleeping for 10 seconds..."
     sleep 10
